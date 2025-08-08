@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { User } from './user.entity';
 import { RegisterDto } from './dto/register.dto';
+import { IPaginationOptions, paginate } from 'nestjs-typeorm-paginate';
 
 @Injectable()
 export class UsersService {
@@ -14,6 +15,10 @@ export class UsersService {
 
   findAll() {
     return this.usersRepository.find();
+  }
+
+  paginate(options: IPaginationOptions) {
+    return paginate(this.usersRepository, options);
   }
 
   findOne(login: string) {
