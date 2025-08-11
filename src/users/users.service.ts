@@ -26,7 +26,15 @@ export class UsersService {
   }
 
   paginate(options: SearchQueryDto) {
-    return paginate(this.usersRepository, options);
+    const { page, limit, login } = options;
+
+    const queryBuilder = this.usersRepository.createQueryBuilder('user');
+
+    if (login && login.trim().length > 0) {
+      queryBuilder.where('user.login = :login', { login });
+    }
+
+    return paginate<User>(queryBuilder, { page, limit });
   }
 
   findOne(login: string) {
