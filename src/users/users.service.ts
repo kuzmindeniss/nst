@@ -139,4 +139,12 @@ export class UsersService {
 
     return this.usersRepository.save(user);
   }
+
+  async delete(login: string) {
+    const user = await this.usersRepository.findOne({ where: { login } });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    return this.usersRepository.remove(user);
+  }
 }

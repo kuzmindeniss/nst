@@ -11,6 +11,7 @@ import {
   ValidationPipe,
   Patch,
   Param,
+  Delete,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { RegisterDto } from './dto/register.dto';
@@ -49,11 +50,17 @@ export class UsersController {
 
   @UseGuards(AuthGuard)
   @Patch(':login')
-  async updateMe(
+  async update(
     @Param('login') login: string,
     @Req() req: Request,
     @Body(ValidationPipe) updates: UpdateUserDto,
   ) {
     return this.usersService.update(login, updates);
+  }
+
+  @UseGuards(AuthGuard)
+  @Delete(':login')
+  async delete(@Param('login') login: string) {
+    return this.usersService.delete(login);
   }
 }
