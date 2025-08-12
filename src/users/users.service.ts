@@ -2,6 +2,7 @@ import {
   Injectable,
   ConflictException,
   BadRequestException,
+  NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -12,6 +13,7 @@ import { paginate } from 'nestjs-typeorm-paginate';
 import { JwtService } from '@nestjs/jwt';
 import { LoginDto } from './dto/login.dto';
 import { SearchQueryDto } from './dto/search.dto';
+import { UpdateUserDto } from './dto/update.dto';
 
 @Injectable()
 export class UsersService {
@@ -102,5 +104,39 @@ export class UsersService {
     const accessToken = await this.jwtService.signAsync(payload);
 
     return { user: savedUser, accessToken };
+  }
+
+  async update(currentLogin: string, updates: UpdateUserDto): Promise<User> {
+    const user = await this.usersRepository.findOne({
+      where: { login: currentLogin },
+    });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (updates.email && updates.email !== user.email) {
+      const existingByEmail = await this.usersRepository.findOne({
+        where: { email: updates.email },
+      });
+      if (existingByEmail && existingByEmail.login !== user.login) {
+        throw new ConflictException('User with this email already exists');
+      }
+      user.email = updates.email;
+    }
+
+    if (updates.password && updates.password.length > 5) {
+      const saltRounds = 10;
+      user.password = await bcrypt.hash(updates.password, saltRounds);
+    }
+
+    if (updates.age) {
+      user.age = updates.age;
+    }
+
+    if (updates.description) {
+      user.description = updates.description;
+    }
+
+    return this.usersRepository.save(user);
   }
 }
