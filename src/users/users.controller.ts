@@ -20,6 +20,8 @@ import { AuthGuard } from './guards/auth.guard';
 import { type Request } from 'express';
 import { SearchQueryDto } from './dto/search.dto';
 import { UpdateUserDto } from './dto/update.dto';
+import { UserResponseDto, UserWithAccessToken } from './dto/user.dto';
+import { ApiPaginatedResponse } from 'src/common/decorators/api-paginated-response';
 
 @Controller('users')
 @UseInterceptors(ClassSerializerInterceptor)
@@ -28,23 +30,28 @@ export class UsersController {
 
   @UseGuards(AuthGuard)
   @Get()
+  @ApiPaginatedResponse(UserResponseDto)
   paginate(@Query() options: SearchQueryDto) {
     return this.usersService.paginate(options);
   }
 
   @Post('register')
-  async register(@Body(ValidationPipe) registerDto: RegisterDto) {
+  async register(
+    @Body(ValidationPipe) registerDto: RegisterDto,
+  ): Promise<UserWithAccessToken> {
     return this.usersService.register(registerDto);
   }
 
   @Post('login')
-  async login(@Body(ValidationPipe) LoginDto: LoginDto) {
+  async login(
+    @Body(ValidationPipe) LoginDto: LoginDto,
+  ): Promise<UserWithAccessToken> {
     return this.usersService.login(LoginDto);
   }
 
   @UseGuards(AuthGuard)
   @Get('me')
-  me(@Req() req: Request) {
+  me(@Req() req: Request): UserResponseDto {
     return req.user;
   }
 
