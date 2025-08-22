@@ -31,8 +31,8 @@ export class UsersController {
   @UseGuards(AuthGuard)
   @Get()
   @ApiPaginatedResponse(UserResponseDto)
-  paginate(@Query() options: SearchQueryDto) {
-    return this.usersService.paginate(options);
+  getUsersPaginated(@Query() options: SearchQueryDto) {
+    return this.usersService.getUsersPaginated(options);
   }
 
   @Post('register')

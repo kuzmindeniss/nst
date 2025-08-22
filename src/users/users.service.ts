@@ -27,7 +27,7 @@ export class UsersService {
     return this.usersRepository.find();
   }
 
-  paginate(options: SearchQueryDto) {
+  getUsersPaginated(options: SearchQueryDto) {
     const { page, limit, login } = options;
 
     const queryBuilder = this.usersRepository.createQueryBuilder('user');

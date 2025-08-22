@@ -59,7 +59,7 @@ describe('UsersController', () => {
         {
           provide: UsersService,
           useValue: {
-            paginate: jest.fn(),
+            getUsersPaginated: jest.fn(),
             register: jest.fn(),
             login: jest.fn(),
             update: jest.fn(),
@@ -85,12 +85,12 @@ describe('UsersController', () => {
   describe('GET /users (paginate)', () => {
     it('should return paginated users', async () => {
       const searchQuery: SearchQueryDto = { page: 1, limit: 10 };
-      usersService.paginate.mockResolvedValue(mockPaginatedResult);
+      usersService.getUsersPaginated.mockResolvedValue(mockPaginatedResult);
 
-      const result = await controller.paginate(searchQuery);
+      const result = await controller.getUsersPaginated(searchQuery);
 
       expect(result).toEqual(mockPaginatedResult);
-      expect(usersService.paginate).toHaveBeenCalledWith(searchQuery);
+      expect(usersService.getUsersPaginated).toHaveBeenCalledWith(searchQuery);
     });
 
     it('should return paginated users with login filter', async () => {
@@ -99,16 +99,19 @@ describe('UsersController', () => {
         limit: 10,
         login: 'testuser',
       };
-      usersService.paginate.mockResolvedValue(mockPaginatedResult);
+      usersService.getUsersPaginated.mockResolvedValue(mockPaginatedResult);
 
-      const result = await controller.paginate(searchQuery);
+      const result = await controller.getUsersPaginated(searchQuery);
 
       expect(result).toEqual(mockPaginatedResult);
-      expect(usersService.paginate).toHaveBeenCalledWith(searchQuery);
+      expect(usersService.getUsersPaginated).toHaveBeenCalledWith(searchQuery);
     });
 
     it('should be protected by AuthGuard', () => {
-      const guards = Reflect.getMetadata('__guards__', controller.paginate);
+      const guards = Reflect.getMetadata(
+        '__guards__',
+        controller.getUsersPaginated,
+      );
       expect(guards).toContain(AuthGuard);
     });
   });
@@ -255,7 +258,10 @@ describe('UsersController', () => {
 
   describe('Guard Protection Tests', () => {
     it('should protect paginate endpoint with AuthGuard', () => {
-      const guards = Reflect.getMetadata('__guards__', controller.paginate);
+      const guards = Reflect.getMetadata(
+        '__guards__',
+        controller.getUsersPaginated,
+      );
       expect(guards).toContain(AuthGuard);
     });
 

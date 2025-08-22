@@ -121,7 +121,7 @@ describe('UsersService', () => {
       paginate.mockResolvedValue(expectedResult);
       userRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder);
 
-      const result = await service.paginate(options);
+      const result = await service.getUsersPaginated(options);
 
       expect(result).toEqual(expectedResult);
       expect(userRepository.createQueryBuilder).toHaveBeenCalledWith('user');
@@ -140,7 +140,7 @@ describe('UsersService', () => {
       paginate.mockResolvedValue(expectedResult);
       userRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder);
 
-      const result = await service.paginate(options);
+      const result = await service.getUsersPaginated(options);
 
       expect(result).toEqual(expectedResult);
       expect(userRepository.createQueryBuilder).toHaveBeenCalledWith('user');
@@ -164,7 +164,7 @@ describe('UsersService', () => {
       paginate.mockResolvedValue(expectedResult);
       userRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder);
 
-      await service.paginate(options);
+      await service.getUsersPaginated(options);
 
       expect(mockQueryBuilder.where).not.toHaveBeenCalled();
     });
