@@ -3,12 +3,14 @@ import { Module } from '@nestjs/common';
 
 import { S3Lib } from './constants/do-spaces-service-lib.constant';
 import { S3Service } from './s3.service';
-import { ConfigService } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 
 @Module({
+  imports: [ConfigModule],
   providers: [
     S3Service,
     {
+      inject: [ConfigService],
       provide: S3Lib,
       useFactory: async (configService: ConfigService) => {
         return new AWS.S3({

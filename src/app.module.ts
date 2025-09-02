@@ -5,8 +5,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { User } from './users/user.entity';
 import { UsersModule } from './users/users.module';
 import { ConfigModule } from '@nestjs/config';
-
-console.log(process.env.MINIO_ENDPOINT);
+import { Avatar } from './users/avatar.entity';
 
 @Module({
   imports: [
@@ -17,7 +16,7 @@ console.log(process.env.MINIO_ENDPOINT);
       username: 'root',
       password: 'root',
       database: 'nst',
-      entities: [User],
+      entities: [User, Avatar],
       synchronize: true,
     }),
     UsersModule,

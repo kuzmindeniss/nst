@@ -1,5 +1,6 @@
 import { Exclude } from 'class-transformer';
-import { Entity, Column, PrimaryColumn } from 'typeorm';
+import { Entity, Column, PrimaryColumn, OneToMany } from 'typeorm';
+import { Avatar } from './avatar.entity';
 
 @Entity()
 export class User {
@@ -18,4 +19,7 @@ export class User {
 
   @Column({ type: 'varchar', length: 1000, nullable: true })
   description: string;
+
+  @OneToMany(() => Avatar, (avatar) => avatar.user, { cascade: true })
+  avatars: Avatar[];
 }

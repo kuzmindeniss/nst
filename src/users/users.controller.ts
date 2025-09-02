@@ -12,6 +12,7 @@ import {
   Patch,
   Param,
   Delete,
+  UploadedFile,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { RegisterDto } from './dto/register.dto';
@@ -22,6 +23,7 @@ import { SearchQueryDto } from './dto/search.dto';
 import { UpdateUserDto } from './dto/update.dto';
 import { UserResponseDto, UserWithAccessToken } from './dto/user.dto';
 import { ApiPaginatedResponse } from 'src/common/decorators/api-paginated-response';
+import { FileInterceptor } from '@nestjs/platform-express';
 
 @Controller('users')
 @UseInterceptors(ClassSerializerInterceptor)
@@ -69,5 +71,15 @@ export class UsersController {
   @Delete(':login')
   async delete(@Param('login') login: string) {
     return this.usersService.delete(login);
+  }
+
+  @UseGuards(AuthGuard)
+  @Post('upload-avatar')
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadAvatar(
+    @Req() req: Request,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    return this.usersService.uploadAvatar(req.user.login, file);
   }
 }

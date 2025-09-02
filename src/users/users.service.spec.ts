@@ -15,6 +15,8 @@ import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { SearchQueryDto } from './dto/search.dto';
 import { UpdateUserDto } from './dto/update.dto';
+import { Avatar } from './avatar.entity';
+import { IFileService } from 'src/providers/files/files.adapter';
 
 jest.mock('bcrypt');
 const mockedBcrypt = bcrypt as jest.Mocked<typeof bcrypt>;
@@ -34,6 +36,7 @@ describe('UsersService', () => {
     password: 'hashedpassword',
     age: 25,
     description: 'Test user description',
+    avatars: [],
   };
 
   const mockQueryBuilder = {
@@ -62,6 +65,19 @@ describe('UsersService', () => {
           provide: JwtService,
           useValue: {
             signAsync: jest.fn(),
+          },
+        },
+        {
+          provide: getRepositoryToken(Avatar),
+          useValue: {
+            create: jest.fn(),
+            save: jest.fn(),
+          },
+        },
+        {
+          provide: IFileService,
+          useValue: {
+            uploadFile: jest.fn(),
           },
         },
       ],
@@ -350,6 +366,7 @@ describe('UsersService', () => {
         password: 'hashedpassword',
         age: 25,
         description: 'Test user description',
+        avatars: [],
       };
 
       const anotherUser: User = {
@@ -358,6 +375,7 @@ describe('UsersService', () => {
         password: 'somepassword',
         age: 30,
         description: 'Another user',
+        avatars: [],
       };
 
       userRepository.findOne
