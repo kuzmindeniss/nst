@@ -14,13 +14,19 @@ import { JwtService } from '@nestjs/jwt';
 import { LoginDto } from './dto/login.dto';
 import { SearchQueryDto } from './dto/search.dto';
 import { UpdateUserDto } from './dto/update.dto';
+import { Avatar } from './avatar.entity';
+import { IFileService } from 'src/providers/files/files.adapter';
+import { v4 } from 'uuid';
 
 @Injectable()
 export class UsersService {
   constructor(
     @InjectRepository(User)
     private usersRepository: Repository<User>,
+    @InjectRepository(Avatar)
+    private avatarsRepository: Repository<Avatar>,
     private readonly jwtService: JwtService,
+    private readonly fileService: IFileService,
   ) {}
 
   findAll() {
@@ -146,5 +152,39 @@ export class UsersService {
       throw new NotFoundException('User not found');
     }
     return this.usersRepository.remove(user);
+  }
+
+  async uploadAvatar(login: string, file: Express.Multer.File) {
+    const user = await this.usersRepository.findOne({
+      where: { login },
+      relations: ['avatars'],
+    });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    if (user.avatars.length > 5) {
+      throw new BadRequestException(
+        'Failed to upload avatar: user already has 5 avatars',
+      );
+    }
+
+    const fileName = v4();
+    const filePayload = {
+      file,
+      folder: 'avatars',
+      name: fileName,
+    };
+    try {
+      await this.fileService.uploadFile(filePayload);
+    } catch (err) {
+      throw new BadRequestException(`Failed to upload avatar: ${err}`);
+    }
+
+    const avatar = this.avatarsRepository.create({
+      id: fileName,
+      isActive: user?.avatars?.length ? false : true,
+      user,
+    });
+    return this.avatarsRepository.save(avatar);
   }
 }
