@@ -3,6 +3,7 @@ import {
   ConflictException,
   BadRequestException,
   NotFoundException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -20,6 +21,8 @@ import { v4 } from 'uuid';
 
 @Injectable()
 export class UsersService {
+  avatarFolder = 'avatars';
+
   constructor(
     @InjectRepository(User)
     private usersRepository: Repository<User>,
@@ -171,7 +174,7 @@ export class UsersService {
     const fileName = v4();
     const filePayload = {
       file,
-      folder: 'avatars',
+      folder: this.avatarFolder,
       name: fileName,
     };
     try {
@@ -186,5 +189,24 @@ export class UsersService {
       user,
     });
     return this.avatarsRepository.save(avatar);
+  }
+
+  async deleteAvatar(login: string, avatarId: string) {
+    const avatar = await this.avatarsRepository.findOne({
+      where: { id: avatarId },
+      relations: ['user'],
+    });
+    if (!avatar) {
+      throw new NotFoundException('Avatar not found');
+    }
+    if (avatar.user.login !== login) {
+      throw new ForbiddenException('You are not allowed to delete this avatar');
+    }
+
+    await this.fileService.removeFile({
+      path: `${this.avatarFolder}/${avatar.id}`,
+    });
+
+    return await this.avatarsRepository.remove(avatar);
   }
 }

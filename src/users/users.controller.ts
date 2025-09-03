@@ -82,4 +82,10 @@ export class UsersController {
   ) {
     return this.usersService.uploadAvatar(req.user.login, file);
   }
+
+  @UseGuards(AuthGuard)
+  @Delete('delete-avatar/:avatarId')
+  async deleteAvatar(@Param('avatarId') avatarId: string, @Req() req: Request) {
+    return this.usersService.deleteAvatar(req.user.login, avatarId);
+  }
 }
