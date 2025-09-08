@@ -4,6 +4,7 @@ import {
   BadRequestException,
   NotFoundException,
   ForbiddenException,
+  Inject,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -18,6 +19,10 @@ import { UpdateUserDto } from './dto/update.dto';
 import { Avatar } from './avatar.entity';
 import { IFileService } from 'src/providers/files/files.adapter';
 import { v4 } from 'uuid';
+import type { Cache } from 'cache-manager';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { UserResponseDto } from './dto/user.dto';
+import { plainToInstance } from 'class-transformer';
 
 @Injectable()
 export class UsersService {
@@ -30,14 +35,23 @@ export class UsersService {
     private avatarsRepository: Repository<Avatar>,
     private readonly jwtService: JwtService,
     private readonly fileService: IFileService,
+    @Inject(CACHE_MANAGER)
+    private readonly cacheManager: Cache,
   ) {}
 
   findAll() {
     return this.usersRepository.find();
   }
 
-  getUsersPaginated(options: SearchQueryDto) {
+  async getUsersPaginated(options: SearchQueryDto) {
     const { page, limit, login } = options;
+
+    const cacheKey = `users:page=${options.page}:limit=${options.limit}:login=${options.login}`;
+
+    const cachedUsers = await this.cacheManager.get(cacheKey);
+    if (cachedUsers) {
+      return cachedUsers;
+    }
 
     const queryBuilder = this.usersRepository.createQueryBuilder('user');
 
@@ -45,7 +59,20 @@ export class UsersService {
       queryBuilder.where('user.login = :login', { login });
     }
 
-    return paginate<User>(queryBuilder, { page, limit });
+    const res = await paginate<User>(queryBuilder, { page, limit });
+
+    const cleanResult = {
+      ...res,
+      items: res.items.map((user) =>
+        plainToInstance(UserResponseDto, user, {
+          excludeExtraneousValues: true,
+        }),
+      ),
+    };
+
+    await this.cacheManager.set(cacheKey, cleanResult, 30000);
+
+    return cleanResult;
   }
 
   findOne(login: string) {
