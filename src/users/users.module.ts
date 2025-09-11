@@ -13,11 +13,12 @@ import { FilesModule } from 'src/providers/files/files.module';
     TypeOrmModule.forFeature([User, Avatar]),
     FilesModule,
     JwtModule.registerAsync({
+      global: true,
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({
-        secret: configService.get('JWT_SECRET', 'dev_secret'),
+        secret: configService.get('JWT_SECRET'),
         signOptions: {
-          expiresIn: configService.get('JWT_EXPIRES_IN', '1h'),
+          expiresIn: configService.get('JWT_EXPIRES_IN'),
         },
       }),
       inject: [ConfigService],

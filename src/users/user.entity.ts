@@ -2,7 +2,7 @@ import { Exclude, Expose } from 'class-transformer';
 import { Entity, Column, PrimaryColumn, OneToMany } from 'typeorm';
 import { Avatar } from './avatar.entity';
 
-@Entity()
+@Entity('user')
 export class User {
   @Expose()
   @PrimaryColumn()
@@ -27,4 +27,8 @@ export class User {
   @Expose()
   @OneToMany(() => Avatar, (avatar) => avatar.user, { cascade: true })
   avatars: Avatar[];
+
+  @Expose()
+  @Column({ type: 'decimal', scale: 2, default: 0 })
+  balance: number;
 }
