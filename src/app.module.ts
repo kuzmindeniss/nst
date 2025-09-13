@@ -11,6 +11,8 @@ import { BalanceModule } from './balance/balance.module';
 import KeyvRedis from '@keyv/redis';
 import { addTransactionalDataSource } from 'typeorm-transactional';
 import { DataSource } from 'typeorm';
+import { BalanceResetModule } from './balance-reset/balance-reset.module';
+import { BullModule } from '@nestjs/bullmq';
 
 @Module({
   imports: [
@@ -22,6 +24,17 @@ import { DataSource } from 'typeorm';
         };
       },
       isGlobal: true,
+      inject: [ConfigService],
+    }),
+    BullModule.forRootAsync({
+      imports: [ConfigModule],
+      useFactory: async (configService: ConfigService) => ({
+        connection: {
+          host: configService.get('REDIS_HOST') || 'localhost',
+          port: configService.get('REDIS_PORT') || 6379,
+          password: configService.get('REDIS_PASSWORD'),
+        },
+      }),
       inject: [ConfigService],
     }),
     TypeOrmModule.forRootAsync({
@@ -47,6 +60,7 @@ import { DataSource } from 'typeorm';
     UsersModule,
     ConfigModule.forRoot(),
     BalanceModule,
+    BalanceResetModule,
   ],
   controllers: [AppController],
   providers: [AppService],
