@@ -3,6 +3,8 @@ import {
   ConflictException,
   BadRequestException,
   NotFoundException,
+  ForbiddenException,
+  Inject,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -14,21 +16,42 @@ import { JwtService } from '@nestjs/jwt';
 import { LoginDto } from './dto/login.dto';
 import { SearchQueryDto } from './dto/search.dto';
 import { UpdateUserDto } from './dto/update.dto';
+import { Avatar } from './avatar.entity';
+import { IFileService } from 'src/providers/files/files.adapter';
+import { v4 } from 'uuid';
+import type { Cache } from 'cache-manager';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { UserResponseDto } from './dto/user.dto';
+import { plainToInstance } from 'class-transformer';
 
 @Injectable()
 export class UsersService {
+  avatarFolder = 'avatars';
+
   constructor(
     @InjectRepository(User)
     private usersRepository: Repository<User>,
+    @InjectRepository(Avatar)
+    private avatarsRepository: Repository<Avatar>,
     private readonly jwtService: JwtService,
+    private readonly fileService: IFileService,
+    @Inject(CACHE_MANAGER)
+    private readonly cacheManager: Cache,
   ) {}
 
   findAll() {
     return this.usersRepository.find();
   }
 
-  getUsersPaginated(options: SearchQueryDto) {
+  async getUsersPaginated(options: SearchQueryDto) {
     const { page, limit, login } = options;
+
+    const cacheKey = `users:page=${options.page}:limit=${options.limit}:login=${options.login}`;
+
+    const cachedUsers = await this.cacheManager.get(cacheKey);
+    if (cachedUsers) {
+      return cachedUsers;
+    }
 
     const queryBuilder = this.usersRepository.createQueryBuilder('user');
 
@@ -36,7 +59,20 @@ export class UsersService {
       queryBuilder.where('user.login = :login', { login });
     }
 
-    return paginate<User>(queryBuilder, { page, limit });
+    const res = await paginate<User>(queryBuilder, { page, limit });
+
+    const cleanResult = {
+      ...res,
+      items: res.items.map((user) =>
+        plainToInstance(UserResponseDto, user, {
+          excludeExtraneousValues: true,
+        }),
+      ),
+    };
+
+    await this.cacheManager.set(cacheKey, cleanResult, 30000);
+
+    return cleanResult;
   }
 
   findOne(login: string) {
@@ -146,5 +182,58 @@ export class UsersService {
       throw new NotFoundException('User not found');
     }
     return this.usersRepository.remove(user);
+  }
+
+  async uploadAvatar(login: string, file: Express.Multer.File) {
+    const user = await this.usersRepository.findOne({
+      where: { login },
+      relations: ['avatars'],
+    });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    if (user.avatars.length > 5) {
+      throw new BadRequestException(
+        'Failed to upload avatar: user already has 5 avatars',
+      );
+    }
+
+    const fileName = v4();
+    const filePayload = {
+      file,
+      folder: this.avatarFolder,
+      name: fileName,
+    };
+    try {
+      await this.fileService.uploadFile(filePayload);
+    } catch (err) {
+      throw new BadRequestException(`Failed to upload avatar: ${err}`);
+    }
+
+    const avatar = this.avatarsRepository.create({
+      id: fileName,
+      isActive: user?.avatars?.length ? false : true,
+      user,
+    });
+    return this.avatarsRepository.save(avatar);
+  }
+
+  async deleteAvatar(login: string, avatarId: string) {
+    const avatar = await this.avatarsRepository.findOne({
+      where: { id: avatarId },
+      relations: ['user'],
+    });
+    if (!avatar) {
+      throw new NotFoundException('Avatar not found');
+    }
+    if (avatar.user.login !== login) {
+      throw new ForbiddenException('You are not allowed to delete this avatar');
+    }
+
+    await this.fileService.removeFile({
+      path: `${this.avatarFolder}/${avatar.id}`,
+    });
+
+    return await this.avatarsRepository.remove(avatar);
   }
 }

@@ -15,6 +15,10 @@ import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { SearchQueryDto } from './dto/search.dto';
 import { UpdateUserDto } from './dto/update.dto';
+import { Avatar } from './avatar.entity';
+import { IFileService } from 'src/providers/files/files.adapter';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { UserResponseDto } from './dto/user.dto';
 
 jest.mock('bcrypt');
 const mockedBcrypt = bcrypt as jest.Mocked<typeof bcrypt>;
@@ -32,6 +36,14 @@ describe('UsersService', () => {
     login: 'testuser',
     email: 'test@example.com',
     password: 'hashedpassword',
+    age: 25,
+    description: 'Test user description',
+    avatars: [],
+  };
+
+  const mockUserResponseDto: UserResponseDto = {
+    login: 'testuser',
+    email: 'test@example.com',
     age: 25,
     description: 'Test user description',
   };
@@ -59,9 +71,29 @@ describe('UsersService', () => {
           },
         },
         {
+          provide: CACHE_MANAGER,
+          useValue: {
+            get: jest.fn(),
+            set: jest.fn(),
+          },
+        },
+        {
           provide: JwtService,
           useValue: {
             signAsync: jest.fn(),
+          },
+        },
+        {
+          provide: getRepositoryToken(Avatar),
+          useValue: {
+            create: jest.fn(),
+            save: jest.fn(),
+          },
+        },
+        {
+          provide: IFileService,
+          useValue: {
+            uploadFile: jest.fn(),
           },
         },
       ],
@@ -116,7 +148,7 @@ describe('UsersService', () => {
     it('should call paginate with correct parameters when no login filter', async () => {
       const { paginate } = jest.requireMock('nestjs-typeorm-paginate');
       const options: SearchQueryDto = { page: 1, limit: 10 };
-      const expectedResult = { items: [mockUser], meta: {} };
+      const expectedResult = { items: [mockUserResponseDto], meta: {} };
 
       paginate.mockResolvedValue(expectedResult);
       userRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder);
@@ -135,7 +167,7 @@ describe('UsersService', () => {
     it('should apply login filter when provided', async () => {
       const { paginate } = jest.requireMock('nestjs-typeorm-paginate');
       const options: SearchQueryDto = { page: 1, limit: 10, login: 'testuser' };
-      const expectedResult = { items: [mockUser], meta: {} };
+      const expectedResult = { items: [mockUserResponseDto], meta: {} };
 
       paginate.mockResolvedValue(expectedResult);
       userRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder);
@@ -159,7 +191,7 @@ describe('UsersService', () => {
     it('should not apply filter for empty login string', async () => {
       const { paginate } = jest.requireMock('nestjs-typeorm-paginate');
       const options: SearchQueryDto = { page: 1, limit: 10, login: '   ' };
-      const expectedResult = { items: [mockUser], meta: {} };
+      const expectedResult = { items: [mockUserResponseDto], meta: {} };
 
       paginate.mockResolvedValue(expectedResult);
       userRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder);
@@ -350,6 +382,7 @@ describe('UsersService', () => {
         password: 'hashedpassword',
         age: 25,
         description: 'Test user description',
+        avatars: [],
       };
 
       const anotherUser: User = {
@@ -358,6 +391,7 @@ describe('UsersService', () => {
         password: 'somepassword',
         age: 30,
         description: 'Another user',
+        avatars: [],
       };
 
       userRepository.findOne
