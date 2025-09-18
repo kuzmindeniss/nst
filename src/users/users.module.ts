@@ -7,6 +7,8 @@ import { User } from './user.entity';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { Avatar } from './avatar.entity';
 import { FilesModule } from 'src/providers/files/files.module';
+import { UserRepository } from './repositories/user.repository';
+import { AvatarRepository } from './repositories/avatar.repository';
 
 @Module({
   imports: [
@@ -24,7 +26,7 @@ import { FilesModule } from 'src/providers/files/files.module';
       inject: [ConfigService],
     }),
   ],
-  providers: [UsersService],
+  providers: [UsersService, UserRepository, AvatarRepository],
   controllers: [UsersController],
 })
 export class UsersModule {}

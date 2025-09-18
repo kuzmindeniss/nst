@@ -6,41 +6,35 @@ import {
   ForbiddenException,
   Inject,
 } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { User } from './user.entity';
 import { RegisterDto } from './dto/register.dto';
-import { paginate } from 'nestjs-typeorm-paginate';
 import { JwtService } from '@nestjs/jwt';
 import { LoginDto } from './dto/login.dto';
 import { SearchQueryDto } from './dto/search.dto';
 import { UpdateUserDto } from './dto/update.dto';
-import { Avatar } from './avatar.entity';
 import { IFileService } from 'src/providers/files/files.adapter';
 import { v4 } from 'uuid';
 import type { Cache } from 'cache-manager';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
-import { UserResponseDto } from './dto/user.dto';
-import { plainToInstance } from 'class-transformer';
+import { UserRepository } from './repositories/user.repository';
+import { AvatarRepository } from './repositories/avatar.repository';
 
 @Injectable()
 export class UsersService {
   avatarFolder = 'avatars';
 
   constructor(
-    @InjectRepository(User)
-    private usersRepository: Repository<User>,
-    @InjectRepository(Avatar)
-    private avatarsRepository: Repository<Avatar>,
     private readonly jwtService: JwtService,
     private readonly fileService: IFileService,
     @Inject(CACHE_MANAGER)
     private readonly cacheManager: Cache,
+    private readonly userRepository: UserRepository,
+    private readonly avatarRepository: AvatarRepository,
   ) {}
 
   findAll() {
-    return this.usersRepository.find();
+    return this.userRepository.findAll();
   }
 
   async getUsersPaginated(options: SearchQueryDto) {
@@ -53,37 +47,26 @@ export class UsersService {
       return cachedUsers;
     }
 
-    const queryBuilder = this.usersRepository.createQueryBuilder('user');
+    const users = await this.userRepository.findWithPagination({
+      page,
+      limit,
+      login,
+    });
 
-    if (login && login.trim().length > 0) {
-      queryBuilder.where('user.login = :login', { login });
-    }
+    await this.cacheManager.set(cacheKey, users, 30000);
 
-    const res = await paginate<User>(queryBuilder, { page, limit });
-
-    const cleanResult = {
-      ...res,
-      items: res.items.map((user) =>
-        plainToInstance(UserResponseDto, user, {
-          excludeExtraneousValues: true,
-        }),
-      ),
-    };
-
-    await this.cacheManager.set(cacheKey, cleanResult, 30000);
-
-    return cleanResult;
+    return users;
   }
 
   findOne(login: string) {
-    return this.usersRepository.findOneBy({ login });
+    return this.userRepository.findByLogin({ login });
   }
 
   async login({
     login,
     password,
   }: LoginDto): Promise<{ user: User; accessToken: string }> {
-    const user = await this.usersRepository.findOne({ where: { login } });
+    const user = await this.userRepository.findByLogin({ login });
     if (!user) {
       throw new BadRequestException('Invalid credentials');
     }
@@ -108,12 +91,16 @@ export class UsersService {
     age,
     description,
   }: RegisterDto): Promise<{ user: User; accessToken: string }> {
-    const existingUserByLogin = await this.usersRepository.findOneBy({ login });
+    const existingUserByLogin = await this.userRepository.findByLogin({
+      login,
+    });
     if (existingUserByLogin) {
       throw new ConflictException('User with this login already exists');
     }
 
-    const existingUserByEmail = await this.usersRepository.findOneBy({ email });
+    const existingUserByEmail = await this.userRepository.findByEmail({
+      email,
+    });
     if (existingUserByEmail) {
       throw new ConflictException('User with this email already exists');
     }
@@ -121,7 +108,7 @@ export class UsersService {
     const saltRounds = 10;
     const hashedPassword = await bcrypt.hash(password, saltRounds);
 
-    const user = this.usersRepository.create({
+    const user = await this.userRepository.create({
       login,
       email,
       password: hashedPassword,
@@ -129,7 +116,7 @@ export class UsersService {
       description,
     });
 
-    const savedUser = await this.usersRepository.save(user);
+    const savedUser = await this.userRepository.save(user);
 
     const payload = {
       user: {
@@ -143,16 +130,14 @@ export class UsersService {
   }
 
   async update(currentLogin: string, updates: UpdateUserDto): Promise<User> {
-    const user = await this.usersRepository.findOne({
-      where: { login: currentLogin },
-    });
+    const user = await this.userRepository.findByLogin({ login: currentLogin });
     if (!user) {
       throw new NotFoundException('User not found');
     }
 
     if (updates.email && updates.email !== user.email) {
-      const existingByEmail = await this.usersRepository.findOne({
-        where: { email: updates.email },
+      const existingByEmail = await this.userRepository.findByEmail({
+        email: updates.email,
       });
       if (existingByEmail && existingByEmail.login !== user.login) {
         throw new ConflictException('User with this email already exists');
@@ -173,26 +158,26 @@ export class UsersService {
       user.description = updates.description;
     }
 
-    return this.usersRepository.save(user);
+    return this.userRepository.save(user);
   }
 
   async delete(login: string) {
-    const user = await this.usersRepository.findOne({ where: { login } });
+    const user = await this.userRepository.findByLogin({ login });
     if (!user) {
       throw new NotFoundException('User not found');
     }
-    return this.usersRepository.remove(user);
+    return this.userRepository.remove(user);
   }
 
   async uploadAvatar(login: string, file: Express.Multer.File) {
-    const user = await this.usersRepository.findOne({
-      where: { login },
+    const user = await this.userRepository.findByLogin({
+      login,
       relations: ['avatars'],
     });
     if (!user) {
       throw new NotFoundException('User not found');
     }
-    if (user.avatars.length > 5) {
+    if (user.avatars?.length > 5) {
       throw new BadRequestException(
         'Failed to upload avatar: user already has 5 avatars',
       );
@@ -210,19 +195,16 @@ export class UsersService {
       throw new BadRequestException(`Failed to upload avatar: ${err}`);
     }
 
-    const avatar = this.avatarsRepository.create({
+    const avatar = await this.avatarRepository.create({
       id: fileName,
       isActive: user?.avatars?.length ? false : true,
       user,
     });
-    return this.avatarsRepository.save(avatar);
+    return this.avatarRepository.save(avatar);
   }
 
   async deleteAvatar(login: string, avatarId: string) {
-    const avatar = await this.avatarsRepository.findOne({
-      where: { id: avatarId },
-      relations: ['user'],
-    });
+    const avatar = await this.avatarRepository.findById({ id: avatarId });
     if (!avatar) {
       throw new NotFoundException('Avatar not found');
     }
@@ -234,6 +216,6 @@ export class UsersService {
       path: `${this.avatarFolder}/${avatar.id}`,
     });
 
-    return await this.avatarsRepository.remove(avatar);
+    return await this.avatarRepository.remove(avatar);
   }
 }

@@ -5,6 +5,7 @@ import { User } from 'src/users/user.entity';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { BullModule } from '@nestjs/bullmq';
 import { BalanceResetConsumer } from './balance-reset.consumer';
+import { UserRepository } from 'src/users/repositories/user.repository';
 
 @Module({
   imports: [
@@ -14,6 +15,6 @@ import { BalanceResetConsumer } from './balance-reset.consumer';
     }),
   ],
   controllers: [BalanceResetController],
-  providers: [BalanceResetService, BalanceResetConsumer],
+  providers: [BalanceResetService, BalanceResetConsumer, UserRepository],
 })
 export class BalanceResetModule {}
