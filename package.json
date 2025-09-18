@@ -17,10 +17,17 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json"
+    "test:e2e": "jest --config ./test/jest-e2e.json",
+    "prepare": "husky install",
+    "pre-commit": "lint-staged"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.879.0",
+    "@keyv/redis": "^5.1.1",
+    "@nestjs/bullmq": "^11.0.3",
+    "@nestjs/cache-manager": "^3.0.1",
     "@nestjs/common": "^11.0.1",
+    "@nestjs/config": "^4.0.2",
     "@nestjs/core": "^11.0.1",
     "@nestjs/jwt": "^11.0.0",
     "@nestjs/platform-express": "^11.0.1",
@@ -28,13 +35,16 @@
     "@nestjs/typeorm": "^11.0.0",
     "@types/bcrypt": "^6.0.0",
     "bcrypt": "^6.0.0",
+    "bullmq": "^5.58.5",
+    "cache-manager": "^7.2.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.2",
     "nestjs-typeorm-paginate": "^4.1.0",
     "pg": "^8.16.3",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
-    "typeorm": "^0.3.25"
+    "typeorm": "^0.3.25",
+    "typeorm-transactional": "^0.5.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",
@@ -44,13 +54,16 @@
     "@nestjs/testing": "^11.0.1",
     "@types/express": "^5.0.0",
     "@types/jest": "^30.0.0",
+    "@types/multer": "^2.0.0",
     "@types/node": "^22.10.7",
     "@types/supertest": "^6.0.2",
     "eslint": "^9.18.0",
     "eslint-config-prettier": "^10.0.1",
     "eslint-plugin-prettier": "^5.2.2",
     "globals": "^16.0.0",
+    "husky": "^8.0.0",
     "jest": "^30.0.0",
+    "lint-staged": "^16.1.5",
     "prettier": "^3.4.2",
     "source-map-support": "^0.5.21",
     "supertest": "^7.0.0",
@@ -80,5 +93,13 @@
     "moduleNameMapper": {
       "^src/(.*)$": "<rootDir>/$1"
     }
+  },
+  "lint-staged": {
+    "*.{js, jsx,ts,tsx}": [
+      "eslint --quiet --fix"
+    ],
+    "*.{json,js,ts,jsx,tsx,html}": [
+      "prettier --write --ignore-unknown"
+    ]
   }
 }
